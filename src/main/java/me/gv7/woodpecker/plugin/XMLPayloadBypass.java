@@ -1,35 +1,10 @@
 package me.gv7.woodpecker.plugin;
 
-//import me.gv7.woodpecker.plugin.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import java.util.*;
-import java.util.regex.*;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class XMLPayloadBypass implements IHelper {
-
-    @Override
-    public String getHelperTabCaption() {
-        return "XML Payload Bypass";
-    }
-
-    @Override
-    public IArgsUsageBinder getHelperCutomArgs() {
-        IArgsUsageBinder argsUsageBinder = VulPluginInfo.pluginHelper.createArgsUsageBinder();
-        List<IArg> args = new ArrayList<IArg>();
-        IArg args1 = VulPluginInfo.pluginHelper.createArg();
-        args1.setName("all");
-        args1.setDefaultValue("");
-        args1.setDescription("write text");
-        args1.setRequired(true);
-        args.add(args1);
-        argsUsageBinder.setArgsList(args);
-        return argsUsageBinder;
-    }
 
     private static final List<String> blacklist = Arrays.asList(
             "eval", "getEngineByName", "javax.script", "ScriptEngineManager", "java.lang.Class",
@@ -41,23 +16,32 @@ public class XMLPayloadBypass implements IHelper {
             "decode", "util", "IOUtils", "toByteArray", "GZIPInputStream", "ByteArrayInputStream", "decodeFromString",
             "apache"
     );
+    private static List<String> entityDefinitions = new ArrayList<>();
+    private static Map<String, String> replacementMap = new HashMap<>();
 
     private static String generateEntityName() {
         return "e_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
-    // 存储实体定义
-    private static List<String> entityDefinitions = new ArrayList<>();
-    // 替换词典
-    private static Map<String, String> replacementMap = new HashMap<>();
-
     private static List<String> splitRandomly(String word) {
-        int splitCount = new Random().nextInt(3) + 2; // 随机选择1-3段
+        int splitCount = new Random().nextInt(3) + 2;
+
+        /*
         if (word.length() <= splitCount) {
-            return Collections.singletonList(word);  // 如果长度小于分段数，则不分割
+            return Collections.singletonList(word);
+        }
+        */
+
+        if (word.length() <= splitCount) {
+            if (word.length() <= 1) {
+                return Collections.singletonList(word);
+            } else {
+                int splitIndex = word.length() / 2;
+                return Arrays.asList(word.substring(0, splitIndex), word.substring(splitIndex));
+            }
         }
 
-        // 生成随机的切割位置
+
         Set<Integer> indices = new HashSet<>();
         while (indices.size() < splitCount - 1) {
             indices.add(new Random().nextInt(word.length() - 1) + 1);
@@ -80,7 +64,6 @@ public class XMLPayloadBypass implements IHelper {
     public static String replaceBlacklist(String xml) {
 
         for (String keyword : blacklist) {
-            // 遍历黑名单关键词，找到每个出现的位置
             Pattern pattern = Pattern.compile(Pattern.quote(keyword));
             Matcher matcher = pattern.matcher(xml);
 
@@ -100,12 +83,30 @@ public class XMLPayloadBypass implements IHelper {
             }
         }
 
-        // 替换为实体
         for (Map.Entry<String, String> entry : replacementMap.entrySet()) {
             xml = xml.replace(entry.getKey(), entry.getValue());
         }
 
         return xml;
+    }
+
+    @Override
+    public String getHelperTabCaption() {
+        return "XML Payload Bypass";
+    }
+
+    @Override
+    public IArgsUsageBinder getHelperCutomArgs() {
+        IArgsUsageBinder argsUsageBinder = VulPluginInfo.pluginHelper.createArgsUsageBinder();
+        List<IArg> args = new ArrayList<IArg>();
+        IArg args1 = VulPluginInfo.pluginHelper.createArg();
+        args1.setName("all");
+        args1.setDefaultValue("");
+        args1.setDescription("write text");
+        args1.setRequired(true);
+        args.add(args1);
+        argsUsageBinder.setArgsList(args);
+        return argsUsageBinder;
     }
 
     @Override
